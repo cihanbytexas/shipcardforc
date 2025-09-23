@@ -7,7 +7,7 @@ import path from "path";
 const app = express();
 app.use(express.json());
 
-const IMGBB_KEY = "BURAYA_IMGBB_KEYIN"; // imgbb key
+const IMGBB_KEY = "b9db5cf8217dccada264cff99e9742bd"; // imgbb key
 
 // Fontu yükle
 const fontPath = path.resolve("./public/fonts/Poppins-Bold.ttf");
