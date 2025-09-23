@@ -1,29 +1,29 @@
-import express from "express";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import FormData from "form-data";
 import axios from "axios";
 import path from "path";
 
-const app = express();
-app.use(express.json());
-
-const IMGBB_KEY = "b9db5cf8217dccada264cff99e9742bd"; // imgbb key
-
-// Fontu yükle
+// Poppins fontu public/fonts içinde olmalı
 const fontPath = path.resolve("./public/fonts/Poppins-Bold.ttf");
 registerFont(fontPath, { family: "Poppins" });
 
-app.post("/ship", async (req, res) => {
+const IMGBB_KEY = "BURAYA_IMGBB_KEYIN"; // kendi imgbb keyini buraya koy
+
+export default async function handler(req, res) {
+  if (req.method !== "POST")
+    return res.status(405).json({ error: "Method not allowed" });
+
   try {
     const {
       user1Name = "User1",
-      user2Name = "User2",
       user1Avatar,
+      user2Name = "User2",
       user2Avatar,
+      shipPercent = 50,
       background
     } = req.body;
 
-    // Canvas boyutu
+    // Dikdörtgen boyut
     const width = 1080;
     const height = 600;
     const canvas = createCanvas(width, height);
@@ -34,49 +34,59 @@ app.post("/ship", async (req, res) => {
       const bg = await loadImage(background);
       ctx.drawImage(bg, 0, 0, width, height);
     } catch {
-      ctx.fillStyle = "#2c2f33";
+      ctx.fillStyle = "#1a1a2e";
       ctx.fillRect(0, 0, width, height);
     }
 
-    // Avatar boyutu
-    const avatarSize = 150;
+    // Avatar boyutları ve konumu
+    const avatarSize = 180;
+    const padding = 40;
 
-    // Sol avatar
+    // User1 avatar (sol)
     try {
-      const avatar1 = await loadImage(user1Avatar);
+      const avatar1Img = await loadImage(user1Avatar);
       ctx.save();
       ctx.beginPath();
-      ctx.arc(150, height / 2, avatarSize / 2, 0, Math.PI * 2, true);
+      ctx.arc(padding + avatarSize / 2, height / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(avatar1, 150 - avatarSize/2, height/2 - avatarSize/2, avatarSize, avatarSize);
+      ctx.drawImage(avatar1Img, padding, height / 2 - avatarSize / 2, avatarSize, avatarSize);
       ctx.restore();
     } catch {}
 
-    // Sağ avatar
+    // User2 avatar (sağ)
     try {
-      const avatar2 = await loadImage(user2Avatar);
+      const avatar2Img = await loadImage(user2Avatar);
       ctx.save();
       ctx.beginPath();
-      ctx.arc(width - 150, height / 2, avatarSize / 2, 0, Math.PI * 2, true);
+      ctx.arc(width - padding - avatarSize / 2, height / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(avatar2, width - 150 - avatarSize/2, height/2 - avatarSize/2, avatarSize, avatarSize);
+      ctx.drawImage(avatar2Img, width - padding - avatarSize, height / 2 - avatarSize / 2, avatarSize, avatarSize);
       ctx.restore();
     } catch {}
+
+    // Ship yüzdesi kutusu (ortada)
+    const boxWidth = 250;
+    const boxHeight = 80;
+    const boxX = width / 2 - boxWidth / 2;
+    const boxY = height / 2 - boxHeight / 2;
+
+    ctx.fillStyle = "#ff4d6d";
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold 40px Poppins`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${shipPercent}%`, width / 2, height / 2);
 
     // İsimler
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 30px Poppins";
-    ctx.textAlign = "center";
-    ctx.fillText(user1Name, 150, height/2 + avatarSize/2 + 40);
-    ctx.fillText(user2Name, width - 150, height/2 + avatarSize/2 + 40);
-
-    // Ship yüzdesi
-    const shipPercent = Math.floor(Math.random() * 101);
-    ctx.fillStyle = "#FF69B4";
-    ctx.font = "bold 60px Poppins";
-    ctx.fillText(`${shipPercent}%`, width/2, height/2);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 32px Poppins";
+    ctx.textAlign = "left";
+    ctx.fillText(user1Name, padding, height - padding);
+    ctx.textAlign = "right";
+    ctx.fillText(user2Name, width - padding, height - padding);
 
     // Canvas → Buffer → Base64
     const buffer = canvas.toBuffer("image/png");
@@ -93,11 +103,8 @@ app.post("/ship", async (req, res) => {
     );
 
     res.status(200).json({ image: imgbbRes.data.data.url });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to generate ship image" });
   }
-});
-
-app.listen(3000, () => console.log("Ship API running on port 3000"));
+}
