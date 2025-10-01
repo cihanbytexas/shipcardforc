@@ -3,11 +3,15 @@ import FormData from "form-data";
 import axios from "axios";
 import path from "path";
 
-// Fontu public/fonts içine koy
-const fontPath = path.resolve("./public/fonts/Poppins-Bold.ttf");
-registerFont(fontPath, { family: "Poppins" });
+// Fontları register et (Vercel uyumlu)
+const boldFont = path.join(process.cwd(), "public/fonts/Poppins-Bold.ttf");
+const regularFont = path.join(process.cwd(), "public/fonts/Poppins-Regular.ttf");
 
-const IMGBB_KEY = "b9db5cf8217dccada264cff99e9742bd"; // imgbb API key
+registerFont(boldFont, { family: "Poppins", weight: "bold" });
+registerFont(regularFont, { family: "Poppins", weight: "normal" });
+
+// imgbb API key
+const IMGBB_KEY = "b9db5cf8217dccada264cff99e9742bd";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -34,7 +38,7 @@ export default async function handler(req, res) {
       const bg = await loadImage(background);
       ctx.drawImage(bg, 0, 0, width, height);
     } catch {
-      ctx.fillStyle = "#1a1a2e";
+      ctx.fillStyle = "#1a1a2e"; // default renk
       ctx.fillRect(0, 0, width, height);
     }
 
