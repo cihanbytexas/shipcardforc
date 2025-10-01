@@ -1,9 +1,9 @@
-import { createCanvas, loadImage, registerFont } from "canvas";
+import { createCanvas, loadImage, registerFont } from "@napi-rs/canvas";
 import FormData from "form-data";
 import axios from "axios";
 import path from "path";
 
-// Fontları register et (Vercel uyumlu)
+// Fontları register et
 const boldFont = path.join(process.cwd(), "public/fonts/Poppins-Bold.ttf");
 const regularFont = path.join(process.cwd(), "public/fonts/Poppins-Regular.ttf");
 
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       const bg = await loadImage(background);
       ctx.drawImage(bg, 0, 0, width, height);
     } catch {
-      ctx.fillStyle = "#1a1a2e"; // default renk
+      ctx.fillStyle = "#1a1a2e"; // default
       ctx.fillRect(0, 0, width, height);
     }
 
@@ -58,7 +58,6 @@ export default async function handler(req, res) {
       ctx.drawImage(img1, avatarPadding, avatarY, avatarSize, avatarSize);
       ctx.restore();
 
-      // Username1 üstüne yaz
       ctx.fillStyle = textColor;
       ctx.font = `bold 30px Poppins`;
       ctx.textAlign = "center";
@@ -77,7 +76,6 @@ export default async function handler(req, res) {
       ctx.drawImage(img2, avatarX2, avatarY, avatarSize, avatarSize);
       ctx.restore();
 
-      // Username2 üstüne yaz
       ctx.fillStyle = textColor;
       ctx.font = `bold 30px Poppins`;
       ctx.textAlign = "center";
