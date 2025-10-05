@@ -1,19 +1,30 @@
 {
-  "name": "love-api",
+  "name": "welcome-api",
   "version": "1.0.0",
+  "description": "Discord Welcome API with Canvas",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
+    "@fontsource/poppins": "^5.0.14",
     "axios": "^1.7.2",
-    "@napi-rs/canvas": "^0.1.28",
+    "canvas": "^3.1.0",
+    "express": "^4.19.2",
     "form-data": "^4.0.0",
+    "jimp": "^1.6.0",
+    "sharp": "^0.33.5",
     "next": "14.2.14",
     "react": "18.3.1",
     "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
   },
   "engines": {
     "node": "22.x"
