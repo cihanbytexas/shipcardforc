@@ -1,112 +1,113 @@
+import express from "express";
 import { createCanvas, loadImage, registerFont } from "canvas";
-import FormData from "form-data";
 import axios from "axios";
+import FormData from "form-data";
 import path from "path";
+import fs from "fs";
 
-// Fontları register et (Vercel uyumlu)
-const boldFont = path.join(process.cwd(), "public/fonts/Poppins-Bold.ttf");
-const regularFont = path.join(process.cwd(), "public/fonts/Poppins-Regular.ttf");
+const app = express();
+app.use(express.json({ limit: "10mb" }));
 
-registerFont(boldFont, { family: "Poppins", weight: "bold" });
-registerFont(regularFont, { family: "Poppins", weight: "normal" });
-
-// imgbb API key
 const IMGBB_KEY = "b9db5cf8217dccada264cff99e9742bd";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+// Fontu GitHub reposundaki "public/fonts" klasörüne ekle
+const fontPath = path.resolve("./public/fonts/Poppins-Bold.ttf");
+if (fs.existsSync(fontPath)) {
+  registerFont(fontPath, { family: "Poppins" });
+}
 
+app.post("/api/ship", async (req, res) => {
   try {
-    const {
-      avatar1,
-      avatar2,
-      username1 = "User1",
-      username2 = "User2",
-      background,
-      lovePercent = 50,
-      textColor = "#FFFFFF"
-    } = req.body;
+    const { username1, username2, avatar1, avatar2, banner } = req.body;
+
+    if (!username1 || !username2 || !avatar1 || !avatar2) {
+      return res.status(400).json({ error: "Eksik parametreler" });
+    }
 
     // Canvas ayarları
-    const width = 1200;
-    const height = 400;
+    const width = 800;
+    const height = 300;
+    const avatarSize = 120;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
-    // Background
-    try {
-      const bg = await loadImage(background);
-      ctx.drawImage(bg, 0, 0, width, height);
-    } catch {
-      ctx.fillStyle = "#1a1a2e"; // default renk
-      ctx.fillRect(0, 0, width, height);
-    }
+    // Banner / arka plan
+    const bannerUrl = banner || "https://i.ibb.co/sKtpPR1/default-banner.jpg";
+    const bg = await loadImage(bannerUrl);
+    ctx.drawImage(bg, 0, 0, width, height);
 
-    // Avatar boyutu ve konum
-    const avatarSize = 200;
-    const avatarY = height / 2 - avatarSize / 2;
-    const avatarPadding = 50;
+    // Avatarlar
+    const avatarLeft = await loadImage(avatar1);
+    const avatarRight = await loadImage(avatar2);
 
-    // Avatar1 - Sol
-    try {
-      const img1 = await loadImage(avatar1);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(avatarPadding + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(img1, avatarPadding, avatarY, avatarSize, avatarSize);
-      ctx.restore();
+    // Sol avatar + gölge
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.4)";
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(160, 150, avatarSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatarLeft, 100, 90, avatarSize, avatarSize);
+    ctx.restore();
 
-      // Username1 üstüne yaz
-      ctx.fillStyle = textColor;
-      ctx.font = `bold 30px Poppins`;
-      ctx.textAlign = "center";
-      ctx.fillText(username1, avatarPadding + avatarSize / 2, avatarY - 10);
-    } catch {}
+    // Sağ avatar + gölge
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.4)";
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(640, 150, avatarSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatarRight, 580, 90, avatarSize, avatarSize);
+    ctx.restore();
 
-    // Avatar2 - Sağ
-    try {
-      const img2 = await loadImage(avatar2);
-      const avatarX2 = width - avatarSize - avatarPadding;
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(avatarX2 + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(img2, avatarX2, avatarY, avatarSize, avatarSize);
-      ctx.restore();
-
-      // Username2 üstüne yaz
-      ctx.fillStyle = textColor;
-      ctx.font = `bold 30px Poppins`;
-      ctx.textAlign = "center";
-      ctx.fillText(username2, avatarX2 + avatarSize / 2, avatarY - 10);
-    } catch {}
-
-    // Ortadaki aşk yüzdesi
-    ctx.fillStyle = textColor;
-    ctx.font = `bold 60px Poppins`;
+    // Kullanıcı isimleri
+    ctx.font = "bold 24px Poppins";
+    ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.fillText(`❤️ ${lovePercent}% ❤️`, width / 2, height / 2 + 20);
+    ctx.fillText(username1, 160, 250);
+    ctx.fillText(username2, 640, 250);
 
-    // Canvas → Buffer → Base64
+    // Ortadaki aşk yüzdesi + gradient
+    const lovePercent = Math.floor(Math.random() * 101);
+    const gradient = ctx.createLinearGradient(320, 0, 480, 0);
+    gradient.addColorStop(0, "#ff4d6d");
+    gradient.addColorStop(1, "#ffb86c");
+
+    ctx.font = "bold 48px Poppins";
+    ctx.fillStyle = gradient;
+    ctx.fillText(`${lovePercent}%`, width / 2, 170);
+
+    // Alt glow / bar
+    ctx.beginPath();
+    ctx.moveTo(150, 280);
+    ctx.lineTo(650, 280);
+    ctx.strokeStyle = "rgba(255, 77, 109, 0.5)";
+    ctx.lineWidth = 6;
+    ctx.shadowColor = "rgba(255, 77, 109, 0.8)";
+    ctx.shadowBlur = 15;
+    ctx.stroke();
+
+    // PNG → IMGBB upload
     const buffer = canvas.toBuffer("image/png");
-    const base64 = buffer.toString("base64");
-
-    // imgbb upload
     const form = new FormData();
-    form.append("image", base64);
+    form.append("image", buffer.toString("base64"));
 
-    const imgbbRes = await axios.post(
+    const uploadRes = await axios.post(
       `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,
       form,
       { headers: form.getHeaders() }
     );
 
-    res.status(200).json({ image: imgbbRes.data.data.url });
+    const imageUrl = uploadRes.data?.data?.url;
+    if (!imageUrl) throw new Error("IMGBB upload başarısız");
+
+    return res.json({ success: true, lovePercent, image: imageUrl });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to generate image" });
+    return res.status(500).json({ error: "Sunucu hatası" });
   }
-}
+});
+
+export default app;
