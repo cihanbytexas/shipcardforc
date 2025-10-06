@@ -16,7 +16,15 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Only POST allowed" });
 
   try {
-    const { username1, username2, avatar1, avatar2, banner } = req.body;
+    const {
+      username1,
+      username2,
+      avatar1,
+      avatar2,
+      banner,
+      bar_color = "ff4d6d",
+      number_color = "ff4d6d",
+    } = req.body;
 
     if (!username1 || !username2 || !avatar1 || !avatar2) {
       return res.status(400).json({ error: "Eksik parametreler" });
@@ -27,124 +35,110 @@ export default async function handler(req, res) {
     const avatarSize = 180;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     // Arka plan
     const bannerUrl = banner || "https://i.ibb.co/sKtpPR1/default-banner.jpg";
     let bg;
-    try { bg = await loadImage(encodeURI(bannerUrl)); } 
+    try { bg = await loadImage(encodeURI(bannerUrl)); }
     catch { bg = await loadImage("https://i.ibb.co/sKtpPR1/default-banner.jpg"); }
     ctx.filter = "blur(4px)";
     ctx.drawImage(bg, 0, 0, width, height);
     ctx.filter = "none";
 
     // Avatarlar
-    let avatarLeft, avatarRight;
-    try { avatarLeft = await loadImage(encodeURI(avatar1)); } 
-    catch { avatarLeft = await loadImage("https://i.ibb.co/sKtpPR1/default-avatar.png"); }
-    try { avatarRight = await loadImage(encodeURI(avatar2)); } 
-    catch { avatarRight = await loadImage("https://i.ibb.co/sKtpPR1/default-avatar.png"); }
+    const loadAvatar = async (url) => {
+      try { return await loadImage(encodeURI(url)); }
+      catch { return await loadImage("https://i.ibb.co/sKtpPR1/default-avatar.png"); }
+    };
+    const avatarLeft = await loadAvatar(avatar1);
+    const avatarRight = await loadAvatar(avatar2);
 
-    // Sol avatar + gölge
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.4)";
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.arc(160, 150, avatarSize / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatarLeft, 80, 70, avatarSize, avatarSize);
-    ctx.restore();
+    // Avatar çizimi
+    const drawAvatar = (image, x, y) => {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(x, y, avatarSize / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(image, x - avatarSize / 2, y - avatarSize / 2, avatarSize, avatarSize);
+      ctx.restore();
+    };
+    drawAvatar(avatarLeft, 160, 150);
+    drawAvatar(avatarRight, 640, 150);
 
-    // Sağ avatar + gölge
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.4)";
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.arc(640, 150, avatarSize / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatarRight, 560, 70, avatarSize, avatarSize);
-    ctx.restore();
+    // Kullanıcı isimleri
+    const drawUsername = (name, x, y) => {
+      const maxLength = 20;
+      let displayName = name.length > maxLength ? name.slice(0, maxLength - 3) + "..." : name;
+      ctx.font = "bold 36px Poppins";
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.fillText(displayName, x, y);
+    };
+    drawUsername(username1, 160, 150 + avatarSize / 2 + 40);
+    drawUsername(username2, 640, 150 + avatarSize / 2 + 40);
 
-    // Kullanıcı isimleri hizalı
-    ctx.font = "bold 36px Poppins";
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    ctx.fillText(username1, 160, 150 + avatarSize / 2 + 30);
-    ctx.fillText(username2, 640, 150 + avatarSize / 2 + 30);
-
-    // Ortadaki aşk yüzdesi + gradient + glow
+    // Aşk yüzdesi
     const lovePercent = Math.floor(Math.random() * 101);
     const gradientText = ctx.createLinearGradient(320, 0, 480, 0);
-    gradientText.addColorStop(0, "#ff4d6d");
-    gradientText.addColorStop(1, "#ffb86c");
+    gradientText.addColorStop(0, `#${number_color}`);
+    gradientText.addColorStop(1, `#${number_color}`);
     ctx.font = "bold 52px Poppins";
     ctx.fillStyle = gradientText;
-    ctx.shadowColor = "rgba(255,77,109,0.8)";
+    const r = parseInt(number_color.slice(0,2),16);
+    const g = parseInt(number_color.slice(2,4),16);
+    const b = parseInt(number_color.slice(4,6),16);
+    ctx.shadowColor = `rgba(${r},${g},${b},0.8)`;
     ctx.shadowBlur = 20;
     ctx.fillText(`${lovePercent}%`, width / 2, 170);
     ctx.shadowBlur = 0;
 
-    // Alt progress bar (gradient + glow + border radius)
+    // Alt progress bar
     const barWidth = 500;
     const barHeight = 14;
     const barX = (width - barWidth) / 2;
-    const barY = 250;
-    const radius = 7; // rounded corners
+    const barY = 260;
+    const radius = 7;
+
+    const drawRoundedBar = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    };
 
     // Bar arka plan
     ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.beginPath();
-    ctx.moveTo(barX + radius, barY);
-    ctx.lineTo(barX + barWidth - radius, barY);
-    ctx.quadraticCurveTo(barX + barWidth, barY, barX + barWidth, barY + radius);
-    ctx.lineTo(barX + barWidth, barY + barHeight - radius);
-    ctx.quadraticCurveTo(barX + barWidth, barY + barHeight, barX + barWidth - radius, barY + barHeight);
-    ctx.lineTo(barX + radius, barY + barHeight);
-    ctx.quadraticCurveTo(barX, barY + barHeight, barX, barY + barHeight - radius);
-    ctx.lineTo(barX, barY + radius);
-    ctx.quadraticCurveTo(barX, barY, barX + radius, barY);
-    ctx.closePath();
+    drawRoundedBar(barX, barY, barWidth, barHeight, radius);
     ctx.fill();
 
-    // Gradient doluluk
+    // Bar doluluk
     const gradientBar = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
-    gradientBar.addColorStop(0, "#ff4d6d");
-    gradientBar.addColorStop(1, "#ffb86c");
+    gradientBar.addColorStop(0, `#${bar_color}`);
+    gradientBar.addColorStop(1, `#${bar_color}`);
     ctx.fillStyle = gradientBar;
-    ctx.shadowColor = "rgba(255,77,109,0.8)";
+    ctx.shadowColor = `rgba(${parseInt(bar_color.slice(0,2),16)},${parseInt(bar_color.slice(2,4),16)},${parseInt(bar_color.slice(4,6),16)},0.8)`;
     ctx.shadowBlur = 8;
 
-    // Doluluk çizimi
-    const filledWidth = (lovePercent / 100) * barWidth;
-    ctx.beginPath();
-    ctx.moveTo(barX + radius, barY);
-    ctx.lineTo(barX + filledWidth - radius, barY);
-    ctx.quadraticCurveTo(barX + filledWidth, barY, barX + filledWidth, barY + radius);
-    ctx.lineTo(barX + filledWidth, barY + barHeight - radius);
-    ctx.quadraticCurveTo(barX + filledWidth, barY + barHeight, barX + filledWidth - radius, barY + barHeight);
-    ctx.lineTo(barX + radius, barY + barHeight);
-    ctx.quadraticCurveTo(barX, barY + barHeight, barX, barY + barHeight - radius);
-    ctx.lineTo(barX, barY + radius);
-    ctx.quadraticCurveTo(barX, barY, barX + radius, barY);
-    ctx.closePath();
+    drawRoundedBar(barX, barY, (lovePercent/100)*barWidth, barHeight, radius);
     ctx.fill();
     ctx.shadowBlur = 0;
 
     // Bar border
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(barX + radius, barY);
-    ctx.lineTo(barX + barWidth - radius, barY);
-    ctx.quadraticCurveTo(barX + barWidth, barY, barX + barWidth, barY + radius);
-    ctx.lineTo(barX + barWidth, barY + barHeight - radius);
-    ctx.quadraticCurveTo(barX + barWidth, barY + barHeight, barX + barWidth - radius, barY + barHeight);
-    ctx.lineTo(barX + radius, barY + barHeight);
-    ctx.quadraticCurveTo(barX, barY + barHeight, barX, barY + barHeight - radius);
-    ctx.lineTo(barX, barY + radius);
-    ctx.quadraticCurveTo(barX, barY, barX + radius, barY);
-    ctx.closePath();
+    drawRoundedBar(barX, barY, barWidth, barHeight, radius);
     ctx.stroke();
 
     // PNG → IMGBB
