@@ -1,19 +1,18 @@
 import { createCanvas, loadImage, registerFont } from "canvas";
-import axios from "axios";
-import FormData from "form-data";
 import path from "path";
-import fs from "fs";
 
-const IMGBB_KEY = "b9db5cf8217dccada264cff99e9742bd";
-
-// Font
-const fontPath = path.resolve("./public/fonts/Poppins-Bold.ttf");
-if (fs.existsSync(fontPath)) {
-  registerFont(fontPath, { family: "Poppins" });
-}
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "2mb",
+    },
+  },
+};
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Only POST allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Sadece POST desteklenir" });
+  }
 
   try {
     const {
@@ -21,89 +20,82 @@ export default async function handler(req, res) {
       username2,
       avatar1,
       avatar2,
+      bar_color = "ff0055",
+      number_color = "ffffff",
       banner,
-      bar_color = "ff4d6d",
-      number_color = "ff4d6d",
+      lovePercent = 75,
     } = req.body;
 
     if (!username1 || !username2 || !avatar1 || !avatar2) {
-      return res.status(400).json({ error: "Eksik parametreler" });
+      return res.status(400).json({ error: "Eksik parametre" });
     }
 
     const width = 800;
-    const height = 300;
-    const avatarSize = 180;
+    const height = 400;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
 
-    // Arka plan
-    const bannerUrl = banner || "https://i.ibb.co/sKtpPR1/default-banner.jpg";
-    let bg;
-    try { bg = await loadImage(encodeURI(bannerUrl)); }
-    catch { bg = await loadImage("https://i.ibb.co/sKtpPR1/default-banner.jpg"); }
-    ctx.filter = "blur(4px)";
-    ctx.drawImage(bg, 0, 0, width, height);
-    ctx.filter = "none";
+    // Font yükleme
+    registerFont(path.resolve("./public/fonts/Poppins-Bold.ttf"), {
+      family: "Poppins",
+    });
 
-    // Avatarlar
-    const loadAvatar = async (url) => {
-      try { return await loadImage(encodeURI(url)); }
-      catch { return await loadImage("https://i.ibb.co/sKtpPR1/default-avatar.png"); }
-    };
-    const avatarLeft = await loadAvatar(avatar1);
-    const avatarRight = await loadAvatar(avatar2);
+    // Arka plan (banner varsa)
+    if (banner) {
+      const bg = await loadImage(banner);
+      ctx.drawImage(bg, 0, 0, width, height);
+      ctx.filter = "blur(8px)";
+      ctx.globalAlpha = 0.6;
+      ctx.drawImage(bg, 0, 0, width, height);
+      ctx.filter = "none";
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = "#101010";
+      ctx.fillRect(0, 0, width, height);
+    }
 
-    // Avatar çizimi
-    const drawAvatar = (image, x, y) => {
+    // Avatar yükleme
+    const img1 = await loadImage(avatar1);
+    const img2 = await loadImage(avatar2);
+
+    const avatarSize = 150;
+    const avatarY = 90;
+    const avatarX1 = width / 2 - 250;
+    const avatarX2 = width / 2 + 100;
+
+    // Yuvarlak avatar çizimi
+    const drawCircularImage = (img, x, y, size) => {
       ctx.save();
-      ctx.shadowColor = "rgba(0,0,0,0.4)";
-      ctx.shadowBlur = 15;
       ctx.beginPath();
-      ctx.arc(x, y, avatarSize / 2, 0, Math.PI * 2);
+      ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(image, x - avatarSize / 2, y - avatarSize / 2, avatarSize, avatarSize);
+      ctx.drawImage(img, x, y, size, size);
       ctx.restore();
     };
-    drawAvatar(avatarLeft, 160, 150);
-    drawAvatar(avatarRight, 640, 150);
 
-    // Kullanıcı isimleri
-    const drawUsername = (name, x, y) => {
-      const maxLength = 20;
-      let displayName = name.length > maxLength ? name.slice(0, maxLength - 3) + "..." : name;
-      ctx.font = "bold 36px Poppins";
-      ctx.fillStyle = "#fff";
-      ctx.textAlign = "center";
-      ctx.fillText(displayName, x, y);
-    };
-    drawUsername(username1, 160, 150 + avatarSize / 2 + 40);
-    drawUsername(username2, 640, 150 + avatarSize / 2 + 40);
+    drawCircularImage(img1, avatarX1, avatarY, avatarSize);
+    drawCircularImage(img2, avatarX2, avatarY, avatarSize);
 
-    // Aşk yüzdesi
-    const lovePercent = Math.floor(Math.random() * 101);
-    const gradientText = ctx.createLinearGradient(320, 0, 480, 0);
-    gradientText.addColorStop(0, `#${number_color}`);
-    gradientText.addColorStop(1, `#${number_color}`);
-    ctx.font = "bold 52px Poppins";
-    ctx.fillStyle = gradientText;
-    const r = parseInt(number_color.slice(0,2),16);
-    const g = parseInt(number_color.slice(2,4),16);
-    const b = parseInt(number_color.slice(4,6),16);
-    ctx.shadowColor = `rgba(${r},${g},${b},0.8)`;
-    ctx.shadowBlur = 20;
-    ctx.fillText(`${lovePercent}%`, width / 2, 170);
+    // İsim yazımı
+    ctx.font = "bold 36px Poppins";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 5;
+
+    ctx.fillText(username1, avatarX1 + avatarSize / 2, avatarY + avatarSize + 40);
+    ctx.fillText(username2, avatarX2 + avatarSize / 2, avatarY + avatarSize + 40);
     ctx.shadowBlur = 0;
 
-    // Alt progress bar
+    // Bar konumu
+    const barY = avatarY + avatarSize + 100;
     const barWidth = 500;
-    const barHeight = 14;
+    const barHeight = 18;
     const barX = (width - barWidth) / 2;
-    const barY = 260;
-    const radius = 7;
+    const radius = 9;
 
+    // Yuvarlak bar
     const drawRoundedBar = (x, y, w, h, r) => {
       ctx.beginPath();
       ctx.moveTo(x + r, y);
@@ -118,46 +110,39 @@ export default async function handler(req, res) {
       ctx.closePath();
     };
 
-    // Bar arka plan
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    // Boş bar arka planı
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
     drawRoundedBar(barX, barY, barWidth, barHeight, radius);
     ctx.fill();
 
-    // Bar doluluk
-    const gradientBar = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
-    gradientBar.addColorStop(0, `#${bar_color}`);
-    gradientBar.addColorStop(1, `#${bar_color}`);
-    ctx.fillStyle = gradientBar;
-    ctx.shadowColor = `rgba(${parseInt(bar_color.slice(0,2),16)},${parseInt(bar_color.slice(2,4),16)},${parseInt(bar_color.slice(4,6),16)},0.8)`;
-    ctx.shadowBlur = 8;
-
-    drawRoundedBar(barX, barY, (lovePercent/100)*barWidth, barHeight, radius);
+    // Dolu kısmı (yüzdeye göre)
+    const filledWidth = (lovePercent / 100) * barWidth;
+    ctx.fillStyle = `#${bar_color}`;
+    ctx.shadowColor = `#${bar_color}`;
+    ctx.shadowBlur = 10;
+    drawRoundedBar(barX, barY, filledWidth, barHeight, radius);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Bar border
-    ctx.strokeStyle = "#fff";
+    // Çerçeve
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
     ctx.lineWidth = 2;
     drawRoundedBar(barX, barY, barWidth, barHeight, radius);
     ctx.stroke();
 
-    // PNG → IMGBB
-    const buffer = canvas.toBuffer("image/png");
-    const form = new FormData();
-    form.append("image", buffer.toString("base64"));
+    // Aşk yüzdesi
+    ctx.font = "bold 42px Poppins";
+    ctx.fillStyle = `#${number_color}`;
+    ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.7)";
+    ctx.shadowBlur = 8;
+    ctx.fillText(`${lovePercent}%`, width / 2, barY + 60);
 
-    const uploadRes = await axios.post(
-      `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,
-      form,
-      { headers: form.getHeaders() }
-    );
-
-    const imageUrl = uploadRes.data?.data?.url;
-    if (!imageUrl) throw new Error("IMGBB upload başarısız");
-
-    return res.status(200).json({ success: true, lovePercent, image: imageUrl });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal Server Error" });
+    // Gönder
+    res.setHeader("Content-Type", "image/png");
+    res.send(canvas.toBuffer());
+  } catch (e) {
+    console.error("Hata:", e);
+    res.status(500).json({ error: e.message });
   }
 }
